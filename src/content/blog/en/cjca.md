@@ -8,7 +8,7 @@ lang: "en"
 
 In this post, I want to share a guide based on my experience preparing for and passing the Hack The Box CJCA certification.
 
-Throughout the post, I will talk about my preparation, the importance of practicing with a methodology, the weight that documentation carries, the analysis part in Elastic/Kibana, and some mistakes that are worth avoiding before and during the exam.
+Throughout the post, I will talk about my preparation, the importance of practicing with a clear methodology, the role documentation plays, the defensive analysis side of the certification, and some mistakes worth avoiding before and during the exam.
 
 ---
 
