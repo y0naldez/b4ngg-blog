@@ -283,9 +283,67 @@ tbody tr:hover {
 		font-size: clamp(1.6rem, 8vw, 2.1rem);
 	}
 
-	table {
-		display: block;
-		overflow-x: auto;
-		white-space: nowrap;
+	th,
+	td {
+		width: 50%;
+		padding: 0.85rem 1rem;
+		word-break: break-word;
 	}
+}
+
+/* Responsive tables */
+.prose table,
+main table,
+article table {
+	width: 100% !important;
+	table-layout: fixed !important;
+	display: table !important;
+	white-space: normal !important;
+}
+
+.prose th,
+.prose td,
+main th,
+main td,
+article th,
+article td {
+	width: auto !important;
+	word-break: break-word;
+	overflow-wrap: anywhere;
+}
+
+.prose th,
+main th,
+article th {
+	background: rgba(var(--gray-light), 0.45);
+}
+
+@media (max-width: 720px) {
+	.prose table,
+	main table,
+	article table {
+		width: 100% !important;
+		table-layout: fixed !important;
+		display: table !important;
+	}
+
+	.prose th,
+	.prose td,
+	main th,
+	main td,
+	article th,
+	article td {
+		padding: 0.85rem 1rem;
+		font-size: 0.95rem;
+	}
+}
+
+.table-scroll {
+	width: 100%;
+	overflow-x: auto;
+}
+
+.table-scroll table {
+	min-width: 640px;
+	table-layout: auto !important;
 }
