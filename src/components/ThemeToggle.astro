@@ -1,0 +1,62 @@
+<button id="theme-toggle" class="theme-toggle" type="button" aria-label="Cambiar tema">
+	<span id="theme-toggle-icon">🌙</span>
+</button>
+
+<script is:inline>
+	const button = document.getElementById('theme-toggle');
+	const icon = document.getElementById('theme-toggle-icon');
+
+	function setTheme(theme) {
+		if (theme === 'dark') {
+			document.documentElement.classList.add('dark');
+			localStorage.setItem('theme', 'dark');
+			if (icon) icon.textContent = '☀️';
+		} else {
+			document.documentElement.classList.remove('dark');
+			localStorage.setItem('theme', 'light');
+			if (icon) icon.textContent = '🌙';
+		}
+	}
+
+	function getInitialTheme() {
+		const savedTheme = localStorage.getItem('theme');
+
+		if (savedTheme) {
+			return savedTheme;
+		}
+
+		return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+	}
+
+	setTheme(getInitialTheme());
+
+	button?.addEventListener('click', () => {
+		const isDark = document.documentElement.classList.contains('dark');
+		setTheme(isDark ? 'light' : 'dark');
+	});
+</script>
+
+<style>
+	.theme-toggle {
+		border: 1px solid rgb(var(--gray-light));
+		background: var(--surface);
+		color: rgb(var(--gray-dark));
+		border-radius: 999px;
+		width: 2.4rem;
+		height: 2.4rem;
+		cursor: pointer;
+		font-size: 1rem;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		transition:
+			background 0.2s ease,
+			border-color 0.2s ease,
+			transform 0.2s ease;
+	}
+
+	.theme-toggle:hover {
+		transform: translateY(-1px);
+		border-color: var(--accent);
+	}
+</style>

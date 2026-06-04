@@ -1,0 +1,55 @@
+---
+import { Image } from 'astro:assets';
+import Layout from '../../layouts/BlogPost.astro';
+import AboutLogo from '../../assets/logo2.png';
+---
+
+<Layout
+	title="About Me"
+	description="My journey"
+	pubDate={new Date('June 03 2026')}
+>
+	<div class="about-logo">
+		<Image src={AboutLogo} width={160} height={160} alt="B4NGG logo" />
+	</div>
+
+	<p>
+		Hi! My name is Alex, although online I usually go by the nickname <strong>B4NGG</strong>.
+	</p>
+
+	<p>
+		I am a software engineer and I am currently focusing my path toward cybersecurity. I have
+		always been interested in this field, but for a long time I did not decide to fully make the
+		jump. Although software development and cybersecurity complement each other, they also have
+		very different approaches and challenges.
+	</p>
+
+	<p>
+		I created this blog to document my cybersecurity journey and share what I learn along the way:
+		machines, certifications, methodologies, mistakes, notes, and personal experiences.
+	</p>
+
+	<p>
+		My goal is to learn in public and leave the path documented, hoping that it can also help
+		someone else.
+	</p>
+
+	<style>
+		.about-logo {
+			display: flex;
+			justify-content: center;
+			margin-bottom: 2rem;
+		}
+
+		.about-logo img {
+			width: 150px;
+			height: 150px;
+			object-fit: contain;
+			border-radius: 999px;
+			background: #000;
+			padding: 1rem;
+			border: 1px solid rgb(var(--gray-light));
+			box-shadow: var(--box-shadow);
+		}
+	</style>
+</Layout>
