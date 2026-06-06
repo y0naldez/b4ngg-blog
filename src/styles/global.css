@@ -58,6 +58,7 @@ html.dark {
 
 html {
 	scroll-behavior: smooth;
+	overflow-x: hidden;
 }
 
 body {
@@ -69,6 +70,7 @@ body {
 	background-size: 100% 600px;
 	word-wrap: break-word;
 	overflow-wrap: break-word;
+	overflow-x: hidden;
 	color: rgb(var(--gray-dark));
 	font-size: 18px;
 	line-height: 1.75;
@@ -92,6 +94,7 @@ main {
 	width: min(100% - 2rem, 900px);
 	margin: auto;
 	padding: 2.5rem 1rem;
+	overflow-x: visible;
 }
 
 h1,
@@ -158,10 +161,6 @@ input {
 	font-size: 16px;
 }
 
-table {
-	width: 100%;
-}
-
 img {
 	max-width: 100%;
 	height: auto;
@@ -215,8 +214,9 @@ hr {
 	box-shadow: var(--box-shadow);
 }
 
-/* Better default tables outside BlogPost layout */
+/* Better default tables */
 table {
+	width: 100%;
 	margin: 1.5rem 0;
 	border-collapse: separate;
 	border-spacing: 0;
@@ -231,6 +231,9 @@ td {
 	padding: 0.85rem 1rem;
 	text-align: left;
 	border-bottom: 1px solid rgb(var(--gray-light));
+	vertical-align: top;
+	word-break: normal;
+	overflow-wrap: normal;
 }
 
 th {
@@ -251,6 +254,58 @@ tbody tr:hover {
 	background: rgba(var(--gray-light), 0.25);
 }
 
+/* Responsive tables: scroll only inside the table wrapper */
+.table-scroll {
+	width: 100%;
+	max-width: 100%;
+	overflow-x: auto;
+	overflow-y: hidden;
+	-webkit-overflow-scrolling: touch;
+	margin: 1.5rem 0;
+	border-radius: 14px;
+}
+
+/* Tables inside .table-scroll keep readable width */
+.table-scroll table {
+	width: max-content;
+	min-width: 900px;
+	max-width: none;
+	margin: 0;
+	table-layout: auto;
+}
+
+/* Prevent ugly letter-by-letter wrapping */
+.table-scroll th,
+.table-scroll td {
+	width: auto;
+	word-break: normal;
+	overflow-wrap: normal;
+	white-space: normal;
+	vertical-align: top;
+}
+
+/* Keep Evidence column readable */
+.table-scroll th:last-child,
+.table-scroll td:last-child {
+	min-width: 420px;
+	max-width: 560px;
+}
+
+/* Alert No. column */
+.table-scroll th:nth-child(1),
+.table-scroll td:nth-child(1) {
+	min-width: 130px;
+}
+
+/* True Positive and False Positive columns */
+.table-scroll th:nth-child(2),
+.table-scroll td:nth-child(2),
+.table-scroll th:nth-child(3),
+.table-scroll td:nth-child(3) {
+	min-width: 170px;
+	text-align: center;
+}
+
 /* Accessibility */
 .sr-only {
 	border: 0;
@@ -268,11 +323,13 @@ tbody tr:hover {
 @media (max-width: 720px) {
 	body {
 		font-size: 17px;
+		overflow-x: hidden;
 	}
 
 	main {
 		width: 100%;
 		padding: 1.25rem 1rem;
+		overflow-x: visible;
 	}
 
 	h1 {
@@ -285,65 +342,30 @@ tbody tr:hover {
 
 	th,
 	td {
-		width: 50%;
-		padding: 0.85rem 1rem;
-		word-break: break-word;
-	}
-}
-
-/* Responsive tables */
-.prose table,
-main table,
-article table {
-	width: 100% !important;
-	table-layout: fixed !important;
-	display: table !important;
-	white-space: normal !important;
-}
-
-.prose th,
-.prose td,
-main th,
-main td,
-article th,
-article td {
-	width: auto !important;
-	word-break: break-word;
-	overflow-wrap: anywhere;
-}
-
-.prose th,
-main th,
-article th {
-	background: rgba(var(--gray-light), 0.45);
-}
-
-@media (max-width: 720px) {
-	.prose table,
-	main table,
-	article table {
-		width: 100% !important;
-		table-layout: fixed !important;
-		display: table !important;
-	}
-
-	.prose th,
-	.prose td,
-	main th,
-	main td,
-	article th,
-	article td {
 		padding: 0.85rem 1rem;
 		font-size: 0.95rem;
+		word-break: normal;
+		overflow-wrap: normal;
 	}
-}
 
-.table-scroll {
-	width: 100%;
-	overflow-x: auto;
-}
+	.table-scroll {
+		width: 100%;
+		max-width: 100%;
+		overflow-x: auto;
+		overflow-y: hidden;
+		-webkit-overflow-scrolling: touch;
+	}
 
-.table-scroll table {
-	min-width: 640px;
-	table-layout: auto !important;
+	.table-scroll table {
+		width: max-content;
+		min-width: 850px;
+		max-width: none;
+		table-layout: auto;
+	}
+
+	.table-scroll th:last-child,
+	.table-scroll td:last-child {
+		min-width: 380px;
+		max-width: 480px;
+	}
 }
