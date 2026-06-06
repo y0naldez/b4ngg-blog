@@ -1,7 +1,7 @@
 ---
 title: "CJCA: Ejemplo de reporte"
 description: "En este post muestro un ejemplo práctico de cómo estructurar un reporte estilo CJCA usando la máquina GoodGames de Hack The Box como laboratorio de referencia."
-pubDate: 2026-06-07
+pubDate: 2026-06-06T12:00:00-06:00
 heroImage: '../../../assets/reporte.png'
 lang: "es"
 ---
