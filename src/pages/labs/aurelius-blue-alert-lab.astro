@@ -1,0 +1,34 @@
+---
+import BlogPost from '../../layouts/BlogPost.astro';
+import AlertPractice from '../../components/AlertPractice.astro';
+import cjcaBlueImage from '../../assets/cjca_blue.png';
+
+const page = {
+	title: 'Aurelius Blue Alert Lab: práctica de alertas',
+	description:
+		'Practica la clasificación de alertas como True Positive o False Positive usando el laboratorio Aurelius Blue Alert Lab.',
+	pubDate: new Date('2026-06-26T12:00:00-06:00'),
+	heroImage: cjcaBlueImage,
+	lang: 'es',
+};
+---
+
+<BlogPost {...page}>
+	<p>
+		En esta sección puedes practicar la clasificación de alertas del laboratorio.
+		Marca cada alerta como <strong>True Positive</strong> o
+		<strong>False Positive</strong> y luego valida tu respuesta.
+	</p>
+    
+	<hr class="section-divider" />
+
+	<AlertPractice />
+</BlogPost>
+
+<style>
+	.section-divider {
+		margin: 2rem 0;
+		border: 0;
+		border-top: 1px solid rgba(148, 163, 184, 0.35);
+	}
+</style>
