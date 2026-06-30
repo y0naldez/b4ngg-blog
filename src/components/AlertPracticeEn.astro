@@ -1,0 +1,811 @@
+---
+const alerts = [
+	{
+		id: 1,
+		code: 'AUR-ALERT-001',
+		title: 'Suspicious Shell Execution by Backup Rotation Job',
+		host: 'ORION-WEB',
+		timestamp: '2025-07-18T08:18:55Z',
+		correct: 'false',
+		explanation:
+			'False Positive. The observed activity corresponds to backup-rotate --version and normal backup tasks. The alert suggests possible shell execution, but there is no evidence that backup-rotate launched sh, bash, or dash as a child process. Because the parent/child relationship that would confirm the alert is missing, it is classified as a false positive.',
+		kql: 'host.name: "ORION-WEB" and process.name: "backup-rotate"',
+		events: 'AUR-EVT-000001',
+	},
+	{
+		id: 2,
+		code: 'AUR-ALERT-002',
+		title: 'Command Execution from CMS Plugin Directory',
+		host: 'ORION-WEB',
+		timestamp: '2025-07-18T08:36:55Z',
+		correct: 'true',
+		explanation:
+			'True Positive. The evidence shows that the nginx/php-fpm web context launched dash with sh -c id from a CMS plugin directory. This combination of web user, php-fpm8.2 parent process, working directory under plugins, and command execution confirms suspicious activity.',
+		kql: 'host.name: "ORION-WEB" and process.name: "dash"',
+		events: 'AUR-EVT-000003; AUR-EVT-000004; AUR-EVT-000005',
+	},
+	{
+		id: 3,
+		code: 'AUR-ALERT-003',
+		title: 'Local Account Enumeration from Web Context',
+		host: 'ORION-WEB',
+		timestamp: '2025-07-18T08:41:55Z',
+		correct: 'true',
+		explanation:
+			'True Positive. The nginx user executed commands such as cat /etc/passwd and ls -la /home/elena. Enumerating accounts and user directories from a web context is not normal application behavior, so the alert is confirmed.',
+		kql: 'host.name: "ORION-WEB" and process.command_line: (*passwd* or */home/elena*)',
+		events: 'AUR-EVT-000006; AUR-EVT-000007',
+	},
+	{
+		id: 4,
+		code: 'AUR-ALERT-004',
+		title: 'Suspicious Access to User SSH Material',
+		host: 'ORION-WEB',
+		timestamp: '2025-07-18T08:46:55Z',
+		correct: 'true',
+		explanation:
+			'True Positive. There is evidence of access to /home/elena/.ssh, including listing or reading SSH material from a web context. A process associated with nginx should not inspect SSH keys or SSH directories belonging to local users, so this case is a true positive.',
+		kql: 'host.name: "ORION-WEB" and file.path: */home/elena/.ssh*',
+		events: 'AUR-EVT-000008; AUR-EVT-000009',
+	},
+	{
+		id: 5,
+		code: 'AUR-ALERT-005',
+		title: 'Unusual Outbound Connection from Web Service',
+		host: 'ORION-WEB',
+		timestamp: '2025-07-18T08:50:55Z',
+		correct: 'true',
+		explanation:
+			'True Positive. php-fpm8.2 made outbound connections to 10.10.22.45 after command execution on the web server. An outbound connection from a web process to a suspicious IP address on unusual ports confirms the alert.',
+		kql: 'host.name: "ORION-WEB" and destination.ip: "10.10.22.45"',
+		events: 'AUR-EVT-000010',
+	},
+	{
+		id: 6,
+		code: 'AUR-ALERT-006',
+		title: 'Suspicious Command Execution by Build Service',
+		host: 'FORGE-CI',
+		timestamp: '2025-07-18T09:03:55Z',
+		correct: 'false',
+		explanation:
+			'False Positive. The command df -k /opt/forgeci/workspace was executed by builder as a normal CI service check. There is no use of /tmp, sudo, credential access, payload, or suspicious command chain. For that reason, it is dismissed as a false positive.',
+		kql: 'host.name: "FORGE-CI" and process.command_line: "df -k /opt/forgeci/workspace"',
+		events: 'AUR-EVT-000012',
+	},
+	{
+		id: 7,
+		code: 'AUR-ALERT-007',
+		title: 'Suspicious Access to Shell History',
+		host: 'FORGE-CI',
+		timestamp: '2025-07-18T09:18:55Z',
+		correct: 'true',
+		explanation:
+			'True Positive. The builder user read /home/builder/.bash_history from an interactive shell. Access to shell history can reveal commands, sensitive paths, or secrets accidentally typed into the shell, so the alert is confirmed.',
+		kql: 'host.name: "FORGE-CI" and file.path: */.bash_history',
+		events: 'AUR-EVT-000014',
+	},
+	{
+		id: 8,
+		code: 'AUR-ALERT-008',
+		title: 'Possible Local Privilege Escalation Discovery',
+		host: 'FORGE-CI',
+		timestamp: '2025-07-18T09:23:55Z',
+		correct: 'true',
+		explanation:
+			'True Positive. builder executed sudo -l from an interactive shell. This command is used to discover available sudo privileges and, in this context, is part of local reconnaissance activity. It is classified as a true positive.',
+		kql: 'host.name: "FORGE-CI" and process.command_line: "sudo -l"',
+		events: 'AUR-EVT-000016',
+	},
+	{
+		id: 9,
+		code: 'AUR-ALERT-009',
+		title: 'Executable Permission Added to Temporary File',
+		host: 'FORGE-CI',
+		timestamp: '2025-07-18T09:29:55Z',
+		correct: 'true',
+		explanation:
+			'True Positive. builder executed chmod +x on a file located in /tmp, and related activity appears afterward. Adding execute permissions to a temporary file is a strong indicator of preparation for suspicious execution.',
+		kql: 'host.name: "FORGE-CI" and process.command_line: *chmod* and process.working_directory: "/tmp"',
+		events: 'AUR-EVT-000018',
+	},
+	{
+		id: 10,
+		code: 'AUR-ALERT-010',
+		title: 'Multiple Outbound Connections by Package Service',
+		host: 'ATLAS-MAIL',
+		timestamp: '2025-07-18T09:42:55Z',
+		correct: 'false',
+		explanation:
+			'False Positive. The connections were made by apt-helper or unattended-upgrade to package mirrors over ports 80/443. There are no suspicious commands nearby, unusual destinations, or relationship with unauthorized access activity. This is normal update traffic.',
+		kql: 'host.name: "ATLAS-MAIL" and process.name: ("apt-helper" or "unattended-upgrade")',
+		events: 'AUR-EVT-000020; AUR-EVT-000021; AUR-EVT-000022',
+	},
+	{
+		id: 11,
+		code: 'AUR-ALERT-011',
+		title: 'Suspicious IMAP Authentication Failures',
+		host: 'ATLAS-MAIL',
+		timestamp: '2025-07-18T09:59:55Z',
+		correct: 'true',
+		explanation:
+			'True Positive. Multiple IMAP authentication failures were observed from 10.10.22.45 against port 993. Repeated attempts from the same IP address against a mail service indicate suspicious authentication activity, so the alert is true.',
+		kql: 'host.name: "ATLAS-MAIL" and destination.port: 993 and source.ip: "10.10.22.45"',
+		events: 'AUR-EVT-000024; AUR-EVT-000025; AUR-EVT-000026; AUR-EVT-000027; AUR-EVT-000028; AUR-EVT-000029',
+	},
+	{
+		id: 12,
+		code: 'AUR-ALERT-012',
+		title: 'Automation Script Executed as Root',
+		host: 'ATLAS-MAIL',
+		timestamp: '2025-07-18T10:14:55Z',
+		correct: 'true',
+		explanation:
+			'True Positive. root executed /home/mateo/.mail-sync.sh, and child actions such as tar or rm were observed afterward. Root executing a script located in a user profile is anomalous and enough to confirm the alert.',
+		kql: 'host.name: "ATLAS-MAIL" and process.command_line: */home/mateo/.mail-sync.sh*',
+		events: 'AUR-EVT-000030; AUR-EVT-000031',
+	},
+	{
+		id: 13,
+		code: 'AUR-ALERT-013',
+		title: 'Possible Anonymous SMB Enumeration',
+		host: 'LYRA-FS',
+		timestamp: '2025-07-18T10:31:55Z',
+		correct: 'false',
+		explanation:
+			'False Positive. An anonymous SMB logon exists, but it is an isolated event and there is no follow-up evidence of share enumeration, remote execution, multiple failures, lateral movement, or relevant activity afterward. Without additional evidence, it is classified as a false positive.',
+		kql: 'host.name: "LYRA-FS" and user.name: "ANONYMOUS LOGON"',
+		events: 'AUR-EVT-000033',
+	},
+	{
+		id: 14,
+		code: 'AUR-ALERT-014',
+		title: 'Possible SMB Password Spraying',
+		host: 'LYRA-FS',
+		timestamp: '2025-07-18T10:46:55Z',
+		correct: 'true',
+		explanation:
+			'True Positive. Several 4625 events with LogonType 3 were observed from 10.10.22.45 against multiple SMB users. The combination of the same source, multiple users, and repeated failures matches a password spraying pattern.',
+		kql: 'host.name: "LYRA-FS" and event.code: "4625" and source.ip: "10.10.22.45"',
+		events: 'AUR-EVT-000035; AUR-EVT-000036; AUR-EVT-000037; AUR-EVT-000038; AUR-EVT-000039; AUR-EVT-000040',
+	},
+	{
+		id: 15,
+		code: 'AUR-ALERT-015',
+		title: 'Suspicious Access to PowerShell History',
+		host: 'VEGA-WS',
+		timestamp: '2025-07-18T11:03:55Z',
+		correct: 'true',
+		explanation:
+			'True Positive. PowerShell read ConsoleHost_history.txt and searched for password-related strings. Searching PowerShell history can reveal credentials or sensitive commands, so it is considered a true positive.',
+		kql: 'host.name: "VEGA-WS" and process.command_line: *ConsoleHost_history.txt*',
+		events: 'AUR-EVT-000041',
+	},
+	{
+		id: 16,
+		code: 'AUR-ALERT-016',
+		title: 'Privileged Account Login from Suspicious Source',
+		host: 'NOVA-ADM',
+		timestamp: '2025-07-18T11:19:55Z',
+		correct: 'true',
+		explanation:
+			'True Positive. A 4624 LogonType 10 login for Administrator was observed from 10.10.22.45, followed by special privilege assignment. A privileged RDP login from a suspicious source confirms the alert.',
+		kql: 'host.name: "NOVA-ADM" and event.code: "4624" and winlog.event_data.LogonType: "10"',
+		events: 'AUR-EVT-000043; AUR-EVT-000044',
+	},
+	{
+		id: 17,
+		code: 'AUR-ALERT-017',
+		title: 'Executable Created in User AppData Directory',
+		host: 'NOVA-ADM',
+		timestamp: '2025-07-18T11:25:55Z',
+		correct: 'true',
+		explanation:
+			'True Positive. PowerShell created C:\\Users\\Administrator\\AppData\\Local\\syncsvc.exe. Creating an executable in AppData under an administrator profile, especially after a suspicious login, is clear evidence of anomalous activity.',
+		kql: 'host.name: "NOVA-ADM" and file.path: *AppData\\\\Local\\\\syncsvc.exe',
+		events: 'AUR-EVT-000045; AUR-EVT-000046',
+	},
+	{
+		id: 18,
+		code: 'AUR-ALERT-018',
+		title: 'Suspicious Scheduled Task Using User Profile Path',
+		host: 'NOVA-ADM',
+		timestamp: '2025-07-18T11:29:55Z',
+		correct: 'true',
+		explanation:
+			'True Positive. Event 4698 shows the creation of the \\SystemSyncCheck task, pointing to the syncsvc.exe executable inside Administrator AppData. A scheduled task that runs binaries from a user profile is suspicious and confirms persistence.',
+		kql: 'host.name: "NOVA-ADM" and event.code: "4698" and winlog.event_data.TaskName: "\\\\SystemSyncCheck"',
+		events: 'AUR-EVT-000047',
+	},
+	{
+		id: 19,
+		code: 'AUR-ALERT-019',
+		title: 'rundll32.exe Executing DLL with Unusual Arguments',
+		host: 'NOVA-ADM',
+		timestamp: '2025-07-18T11:46:55Z',
+		correct: 'false',
+		explanation:
+			'False Positive. rundll32.exe executed shell32.dll from C:\\Windows\\System32 with explorer.exe as the parent process and normal COM arguments. There is no DLL in a suspicious path, encoded PowerShell, or associated payload. For that reason, it is a false positive.',
+		kql: 'host.name: "NOVA-ADM" and process.name: "rundll32.exe"',
+		events: 'AUR-EVT-000049',
+	},
+	{
+		id: 20,
+		code: 'AUR-ALERT-020',
+		title: 'Suspicious Process Access to LSASS',
+		host: 'VEGA-WS',
+		timestamp: '2025-07-18T12:01:55Z',
+		correct: 'false',
+		explanation:
+			'False Positive. Access to lsass.exe was performed by svchost.exe under NT AUTHORITY\\SYSTEM, with services.exe as the parent process. There is no evidence of a dump, mimikatz, suspicious PowerShell, or comsvcs.dll. The activity matches normal system behavior.',
+		kql: 'host.name: "VEGA-WS" and event.code: "10" and target.process.name: "lsass.exe"',
+		events: 'AUR-EVT-000051',
+	},
+];
+---
+
+<section class="alert-practice" data-alert-practice>
+	<div class="practice-header">
+		<div class="score-box" data-score>Progress: 0 / {alerts.length}</div>
+	</div>
+
+	<div class="carousel-shell">
+		<div class="carousel-status">
+			<span data-carousel-position>Question 1 / {alerts.length}</span>
+			<div class="progress-track" aria-hidden="true">
+				<span data-progress-bar style={`width: ${100 / alerts.length}%`}></span>
+			</div>
+		</div>
+
+		<div class="alerts-carousel" data-carousel>
+			{
+				alerts.map((alert, index) => (
+					<article
+						class:list={['alert-card', index === 0 && 'is-active']}
+						data-alert-card
+						data-alert-id={alert.id}
+						data-correct={alert.correct}
+						hidden={index !== 0}
+					>
+						<div class="alert-card-header">
+							<span class="alert-number">{alert.code}</span>
+							<h3>{alert.title}</h3>
+						</div>
+
+						<div class="options" role="radiogroup" aria-label={`Classification for ${alert.code}`}>
+							<label>
+								<input
+									type="radio"
+									name={`alert-${alert.id}`}
+									value="true"
+									data-option
+								/>
+								True Positive
+							</label>
+
+							<label>
+								<input
+									type="radio"
+									name={`alert-${alert.id}`}
+									value="false"
+									data-option
+								/>
+								False Positive
+							</label>
+						</div>
+
+						<div class="actions">
+							<button type="button" class="check-button" data-check>
+								Check Answer
+							</button>
+
+							<button type="button" class="reset-button" data-reset>
+								Reset
+							</button>
+						</div>
+
+						<p class="result-message" data-result hidden></p>
+
+						<details class="explanation-box" data-explanation hidden>
+							<summary>View Explanation and Evidence</summary>
+
+							<div class="explanation-content">
+								<strong>Explanation:</strong>
+								<p>{alert.explanation}</p>
+
+								<strong>Recommended KQL:</strong>
+								<pre><code>{alert.kql}</code></pre>
+
+								<strong>Related Events:</strong>
+								<p>{alert.events}</p>
+							</div>
+						</details>
+					</article>
+				))
+			}
+		</div>
+
+		<div class="carousel-controls" aria-label="Carousel controls">
+			<button type="button" class="nav-button" data-prev aria-label="Previous question">
+				<span aria-hidden="true">&larr;</span>
+				Previous
+			</button>
+
+			<div class="dot-list" data-dot-list aria-label="Select question">
+				{
+					alerts.map((alert, index) => (
+						<button
+							type="button"
+							class:list={['dot-button', index === 0 && 'is-active']}
+							data-dot={index}
+							aria-label={`Go to question ${alert.id}`}
+							aria-current={index === 0 ? 'step' : undefined}
+						>
+							{alert.id}
+						</button>
+					))
+				}
+			</div>
+
+			<button type="button" class="nav-button" data-next aria-label="Next question">
+				Next
+				<span aria-hidden="true">&rarr;</span>
+			</button>
+		</div>
+	</div>
+</section>
+
+<script>
+	const practiceSections = document.querySelectorAll('[data-alert-practice]');
+
+	practiceSections.forEach((section) => {
+		const cards = Array.from(section.querySelectorAll('[data-alert-card]'));
+		const scoreBox = section.querySelector('[data-score]');
+		const positionBox = section.querySelector('[data-carousel-position]');
+		const progressBar = section.querySelector('[data-progress-bar]');
+		const prevButton = section.querySelector('[data-prev]');
+		const nextButton = section.querySelector('[data-next]');
+		const dots = Array.from(section.querySelectorAll('[data-dot]'));
+		let currentIndex = 0;
+
+		function updateScore() {
+			const completed = cards.filter((card) => card.dataset.completed === 'true').length;
+
+			if (scoreBox) {
+				scoreBox.textContent = `Progress: ${completed} / ${cards.length}`;
+			}
+		}
+
+		function showCard(index) {
+			currentIndex = Math.max(0, Math.min(index, cards.length - 1));
+
+			cards.forEach((card, cardIndex) => {
+				const isActive = cardIndex === currentIndex;
+				card.hidden = !isActive;
+				card.classList.toggle('is-active', isActive);
+			});
+
+			dots.forEach((dot, dotIndex) => {
+				const isActive = dotIndex === currentIndex;
+				dot.classList.toggle('is-active', isActive);
+				dot.setAttribute('aria-current', isActive ? 'step' : 'false');
+			});
+
+			if (positionBox) {
+				positionBox.textContent = `Question ${currentIndex + 1} / ${cards.length}`;
+			}
+
+			if (progressBar) {
+				progressBar.style.width = `${((currentIndex + 1) / cards.length) * 100}%`;
+			}
+
+			if (prevButton) {
+				prevButton.disabled = currentIndex === 0;
+			}
+
+			if (nextButton) {
+				nextButton.disabled = currentIndex === cards.length - 1;
+			}
+		}
+
+		cards.forEach((card) => {
+			const alertId = card.dataset.alertId;
+			const correctAnswer = card.dataset.correct;
+			const checkButton = card.querySelector('[data-check]');
+			const resetButton = card.querySelector('[data-reset]');
+			const result = card.querySelector('[data-result]');
+			const explanation = card.querySelector('[data-explanation]');
+			const options = Array.from(card.querySelectorAll('[data-option]'));
+			const storageKey = `aurelius-alert-${alertId}`;
+			const savedAnswer = localStorage.getItem(storageKey);
+
+			if (savedAnswer) {
+				const savedOption = card.querySelector(`input[value="${savedAnswer}"]`);
+
+				if (savedOption) {
+					savedOption.checked = true;
+				}
+			}
+
+			checkButton?.addEventListener('click', () => {
+				const selected = card.querySelector('input[type="radio"]:checked');
+
+				if (!selected) {
+					if (result) {
+						result.hidden = false;
+						result.textContent =
+							'Select True Positive or False Positive before checking your answer.';
+						result.className = 'result-message warning';
+					}
+
+					if (explanation) {
+						explanation.hidden = true;
+					}
+
+					return;
+				}
+
+				localStorage.setItem(storageKey, selected.value);
+				card.dataset.completed = 'true';
+
+				const isCorrect = selected.value === correctAnswer;
+
+				if (result) {
+					result.hidden = false;
+					result.textContent = isCorrect
+						? 'Correct.'
+						: 'Incorrect. Review the explanation.';
+					result.className = isCorrect
+						? 'result-message correct'
+						: 'result-message incorrect';
+				}
+
+				if (explanation) {
+					explanation.hidden = false;
+					explanation.open = false;
+				}
+
+				options.forEach((option) => {
+					option.disabled = true;
+				});
+
+				updateScore();
+			});
+
+			resetButton?.addEventListener('click', () => {
+				localStorage.removeItem(storageKey);
+				card.dataset.completed = 'false';
+
+				options.forEach((option) => {
+					option.checked = false;
+					option.disabled = false;
+				});
+
+				if (result) {
+					result.hidden = true;
+					result.textContent = '';
+					result.className = 'result-message';
+				}
+
+				if (explanation) {
+					explanation.hidden = true;
+					explanation.open = false;
+				}
+
+				updateScore();
+			});
+		});
+
+		prevButton?.addEventListener('click', () => {
+			showCard(currentIndex - 1);
+		});
+
+		nextButton?.addEventListener('click', () => {
+			showCard(currentIndex + 1);
+		});
+
+		dots.forEach((dot) => {
+			dot.addEventListener('click', () => {
+				showCard(Number(dot.dataset.dot));
+			});
+		});
+
+		section.addEventListener('keydown', (event) => {
+			if (event.key === 'ArrowLeft') {
+				showCard(currentIndex - 1);
+			}
+
+			if (event.key === 'ArrowRight') {
+				showCard(currentIndex + 1);
+			}
+		});
+
+		updateScore();
+		showCard(0);
+	});
+</script>
+
+<style>
+	.alert-practice {
+		margin-top: 2rem;
+	}
+
+	.alert-practice [hidden] {
+		display: none !important;
+	}
+
+	.practice-header {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.practice-header h2 {
+		margin: 0;
+	}
+
+	.practice-header p {
+		margin-bottom: 0;
+	}
+
+	.eyebrow {
+		margin: 0 0 0.35rem;
+		font-size: 0.78rem;
+		font-weight: 800;
+		letter-spacing: 0;
+		text-transform: uppercase;
+		opacity: 0.7;
+	}
+
+	.score-box {
+		flex: 0 0 auto;
+		padding: 0.5rem 0.75rem;
+		border: 1px solid rgba(148, 163, 184, 0.5);
+		border-radius: 8px;
+		font-size: 0.9rem;
+		font-weight: 700;
+	}
+
+	.carousel-shell {
+		display: grid;
+		gap: 1rem;
+	}
+
+	.carousel-status {
+		display: grid;
+		gap: 0.5rem;
+		font-size: 0.92rem;
+		font-weight: 700;
+	}
+
+	.progress-track {
+		overflow: hidden;
+		width: 100%;
+		height: 0.55rem;
+		border-radius: 8px;
+		background: rgba(148, 163, 184, 0.2);
+	}
+
+	.progress-track span {
+		display: block;
+		height: 100%;
+		border-radius: inherit;
+		background: #38bdf8;
+		transition: width 180ms ease;
+	}
+
+	.alerts-carousel {
+		position: relative;
+		min-height: 18rem;
+	}
+
+	.alert-card {
+		border: 1px solid rgba(148, 163, 184, 0.35);
+		border-radius: 8px;
+		padding: 1rem;
+		background: rgba(15, 23, 42, 0.04);
+	}
+
+	.alert-card.is-active {
+		animation: fade-slide 180ms ease;
+	}
+
+	.alert-card-header {
+		display: grid;
+		gap: 0.4rem;
+		margin-bottom: 0.85rem;
+	}
+
+	.alert-number {
+		display: inline-flex;
+		width: fit-content;
+		padding: 0.35rem 0.55rem;
+		border: 1px solid rgba(148, 163, 184, 0.35);
+		border-radius: 8px;
+		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+		font-size: 0.82rem;
+		font-weight: 800;
+		line-height: 1;
+		opacity: 0.9;
+	}
+
+	.alert-card h3 {
+		margin: 0;
+		font-size: 1.18rem;
+		font-weight: 800;
+		line-height: 1.25;
+		overflow-wrap: anywhere;
+	}
+
+	.options {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		margin: 0.85rem 0;
+	}
+
+	.options label {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		min-height: 2.5rem;
+		padding: 0.55rem 0.75rem;
+		border: 1px solid rgba(148, 163, 184, 0.35);
+		border-radius: 8px;
+		cursor: pointer;
+	}
+
+	.options input {
+		margin: 0;
+	}
+
+	.actions,
+	.carousel-controls {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.check-button,
+	.reset-button,
+	.nav-button,
+	.dot-button {
+		cursor: pointer;
+		border: 1px solid rgba(148, 163, 184, 0.5);
+		border-radius: 8px;
+		background: transparent;
+		color: inherit;
+		font: inherit;
+	}
+
+	.check-button,
+	.reset-button,
+	.nav-button {
+		min-height: 2.5rem;
+		padding: 0.5rem 0.9rem;
+	}
+
+	.nav-button {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+	}
+
+	.check-button:hover,
+	.reset-button:hover,
+	.nav-button:hover,
+	.dot-button:hover {
+		background: rgba(148, 163, 184, 0.12);
+	}
+
+	.nav-button:disabled {
+		cursor: not-allowed;
+		opacity: 0.45;
+	}
+
+	.result-message {
+		margin-top: 1rem;
+		font-weight: 800;
+	}
+
+	.result-message.correct {
+		color: #16a34a;
+	}
+
+	.result-message.incorrect {
+		color: #dc2626;
+	}
+
+	.result-message.warning {
+		color: #ca8a04;
+	}
+
+	.explanation-box {
+		margin-top: 0.8rem;
+		padding: 0.75rem 0.9rem;
+		border-left: 4px solid rgba(14, 165, 233, 0.8);
+		border-radius: 8px;
+		background: rgba(14, 165, 233, 0.08);
+	}
+
+	.explanation-box summary {
+		cursor: pointer;
+		font-weight: 800;
+	}
+
+	.explanation-content {
+		display: grid;
+		gap: 0.5rem;
+		padding-top: 0.75rem;
+	}
+
+	.explanation-content p {
+		margin: 0;
+	}
+
+	.explanation-content pre {
+		overflow-x: auto;
+		margin: 0;
+		padding: 0.75rem;
+		border-radius: 8px;
+		background: rgba(15, 23, 42, 0.08);
+	}
+
+	.dot-list {
+		display: flex;
+		flex: 1 1 18rem;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+		justify-content: center;
+	}
+
+	.dot-button {
+		width: 2rem;
+		height: 2rem;
+		padding: 0;
+		font-size: 0.82rem;
+		font-weight: 800;
+	}
+
+	.dot-button.is-active {
+		border-color: #38bdf8;
+		background: rgba(56, 189, 248, 0.16);
+	}
+
+	@keyframes fade-slide {
+		from {
+			opacity: 0;
+			transform: translateX(0.75rem);
+		}
+
+		to {
+			opacity: 1;
+			transform: translateX(0);
+		}
+	}
+
+	@media (max-width: 700px) {
+		.practice-header {
+			display: grid;
+		}
+
+		.score-box {
+			width: fit-content;
+		}
+
+		.alerts-carousel {
+			min-height: 22rem;
+		}
+
+		.carousel-controls {
+			justify-content: space-between;
+		}
+
+		.dot-list {
+			order: 3;
+			flex-basis: 100%;
+		}
+	}
+</style>
